@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# hotspot - easily fire up and manage wifi hotspots
 
 
 # wireless_devices: list wireless devices
@@ -15,8 +16,9 @@ ethernet_devices() {
 
 # is_operational: check if a ethernet device is operational
 is_operational() {
-    local carrier=$(cat /sys/class/net/$1/carrier)
-    local operstate=$(cat /sys/class/net/$1/operstate)
+    local carrier operstate
+    carrier=$(cat /sys/class/net/"$1"/carrier)
+    operstate=$(cat /sys/class/net/"$1"/operstate)
 
     if [[ $carrier -eq 1 && $operstate == "up" ]]; then
         true
@@ -30,7 +32,7 @@ is_operational() {
 has_cabled_connection() {
     local cabled_ethernet=false
     for device in $(ethernet_devices); do
-        if is_operational $device; then
+        if is_operational "$device"; then
             cabled_ethernet=true
         fi
     done
@@ -107,6 +109,7 @@ stop() {
 }
 
 
+# status: print the hotspot status
 status() {
     if [[ $# -eq 0 ]]; then
         nmcli device wifi show-password
