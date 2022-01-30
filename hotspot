@@ -19,9 +19,9 @@ is_operational() {
     local operstate=$(cat /sys/class/net/$1/operstate)
 
     if [[ $carrier -eq 1 && $operstate == "up" ]]; then
-        echo true
+        true
     else
-        echo false
+        false
     fi
 }
 
@@ -35,7 +35,7 @@ has_cabled_connection() {
         fi
     done
 
-    echo cabled_ethernet
+    $cabled_ethernet
 }
 
 
@@ -43,9 +43,9 @@ has_cabled_connection() {
 has_internet_connection() {
     wget -q --spider http://google.com
     if [[ $? -eq 0 ]]; then
-        echo true
+        true
     else
-        echo false
+        false
     fi
 }
 
@@ -54,9 +54,9 @@ has_internet_connection() {
 is_hotspot_active() {
     status &> /dev/null
     if [[ $? -eq 0 ]]; then
-        echo true
+        true
     else
-        echo false
+        false
     fi
 }
 
@@ -67,7 +67,7 @@ start() {
     local password="$2"
 
     # if there's no cabled internet, do nothing
-    if ! $(has_cabled_connection) || ! $(has_internet_connection); then
+    if ! has_cabled_connection || ! has_internet_connection; then
         exit
     fi
 
@@ -75,7 +75,7 @@ start() {
     nmcli radio wifi on
 
     # if the hotspot is already on, do nothing
-    if $(is_hotspot_active); then
+    if is_hotspot_active; then
         echo "info: the WiFi hotspot is already on"
         exit
     fi
@@ -99,7 +99,7 @@ stop() {
     fi
 
     # if hotspot is active, turn it off
-    if $(is_hotspot_active); then
+    if is_hotspot_active; then
         # switch the wifi interface off and on
         nmcli radio wifi off
         nmcli radio wifi on
