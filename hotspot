@@ -54,7 +54,7 @@ has_internet_connection() {
 
 # is_hotspot_active: check if hotspot is active
 is_hotspot_active() {
-    status &> /dev/null
+    info &> /dev/null
     if [[ $? -eq 0 ]]; then
         true
     else
@@ -63,15 +63,22 @@ is_hotspot_active() {
 }
 
 
+# get_ssid: print the hotspot ssid
+get_ssid() {
+    nmcli device wifi show-password | awk 'NR==1 {print $NF}'
+}
+
+
+# get_password: print the hotspot password
+get_password() {
+    nmcli device wifi show-password | awk 'NR==3 {print $NF}'
+}
+
+
 # start: start the hotspot
 start() {
     local ssid="$1"
     local password="$2"
-
-    # if there's no cabled internet, do nothing
-    if ! has_cabled_connection || ! has_internet_connection; then
-        exit
-    fi
 
     # make sure that wifi adaptor is enabled
     nmcli radio wifi on
@@ -79,17 +86,19 @@ start() {
     # if the hotspot is already on, do nothing
     if is_hotspot_active; then
         echo "info: the WiFi hotspot is already on"
-        exit
+        return
     fi
 
     # start the wifi hotspot
     if [[ $# -eq 0 ]]; then
         nmcli device wifi hotspot
     elif [[ $# -eq 2 ]]; then
-        nmcli device wifi hotspot ssid $ssid password $password
+        nmcli device wifi hotspot ssid "$ssid" password "$password"
     else
         echo "usage: hotspot start <ssid> <password>"
+        return
     fi
+    echo
 }
 
 
@@ -98,6 +107,7 @@ stop() {
     if [[ $# -ne 0 ]]; then
         echo "usage: hotspot stop"
         echo "error: too many arguments"
+        return
     fi
 
     # if hotspot is active, turn it off
@@ -109,17 +119,44 @@ stop() {
 }
 
 
-# status: print the hotspot status
-status() {
-    if [[ $# -eq 0 ]]; then
-        nmcli device wifi show-password
-    else
-        echo "usage: hotspot status"
+# sync: start the hotspot if there's network available, otherwise turn it off
+sync() {
+    if [[ $# -ne 0 ]]; then
+        echo "usage: hotspot sync"
         echo "error: too many arguments"
+        return
+    fi
+
+    # if there's cabled internet, fire up the hotspot
+    if has_cabled_connection && has_internet_connection; then
+        start
+    else
+        stop
+    fi
+
+}
+
+
+# info: print info on the hotspot
+info() {
+    if [[ $# -ne 0 ]]; then
+        echo "usage: hotspot info"
+        echo "error: too many arguments"
+        return
+    fi
+
+    local ssid=$(get_ssid)
+    local password=$(get_password)
+    if [[ $? -eq 0 ]]; then
+        echo "ssid:     $ssid"
+        echo "password: $password"
+    else
+        echo "error: the Wifi hotpost is currently off"
     fi
 }
 
 
+# usage: print usage
 usage() {
     cat <<HELP_USAGE
 usage: hotspot COMMAND
@@ -128,23 +165,34 @@ List of commands :
 
 start           Start a WiFi hotspot
 stop            Stop any running WiFi hotspot
-status          Check the status of the WiFi hotspot
+info            Print info on the WiFi hotspot
+sync            Start a WiFi hotspot if there's cabled internet,
+                shut it down otherwise
 HELP_USAGE
 }
 
 
 main() {
-    if [[ $# -eq 0 ]]; then
+    local command=$1
+    local args="${*:2}"
+
+    case "$command" in
+    start)
+        start $args
+        ;;
+    stop)
+        stop $args
+        ;;
+    sync)
+        sync $args
+        ;;
+    info)
+        info $args
+        ;;
+    *)
         usage
-    elif [[ $1 == "start" ]]; then
-        start "${@:2}"
-    elif [[ $1 == "stop" ]]; then
-        stop "${@:2}"
-    elif [[ $1 == "status" ]]; then
-        status "${@:2}"
-    else
-        echo "error: unknown command $1"
-    fi
+        ;;
+    esac
 }
 
 
