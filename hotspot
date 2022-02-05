@@ -28,6 +28,17 @@ is_operational() {
 }
 
 
+# is_hotspot_active: check if hotspot is active
+is_hotspot_active() {
+    nmcli device wifi show-password &> /dev/null
+    if [[ $? -eq 0 ]]; then
+        true
+    else
+        false
+    fi
+}
+
+
 # has_cabled_connection: check for cabled connection
 has_cabled_connection() {
     local cabled_ethernet=false
@@ -44,17 +55,6 @@ has_cabled_connection() {
 # has_internet_connection: check for internet connection
 has_internet_connection() {
     wget -q --spider http://google.com
-    if [[ $? -eq 0 ]]; then
-        true
-    else
-        false
-    fi
-}
-
-
-# is_hotspot_active: check if hotspot is active
-is_hotspot_active() {
-    info &> /dev/null
     if [[ $? -eq 0 ]]; then
         true
     else
@@ -91,14 +91,21 @@ start() {
 
     # start the wifi hotspot
     if [[ $# -eq 0 ]]; then
-        nmcli device wifi hotspot
+        nmcli device wifi hotspot &> /dev/null
     elif [[ $# -eq 2 ]]; then
-        nmcli device wifi hotspot ssid "$ssid" password "$password"
+        nmcli device wifi hotspot ssid "$ssid" password "$password" &> /dev/null
     else
         echo "usage: hotspot start <ssid> <password>"
         return
     fi
-    echo
+
+    # display info on the hotspot, or possibly an error
+    if [[ $? -eq 0 ]]; then
+        echo "The WiFi hotspot is now on"
+        info
+    else
+        echo "error: couldn't start the WiFi hotspot"
+    fi
 }
 
 
@@ -119,7 +126,8 @@ stop() {
 }
 
 
-# sync: start the hotspot if there's network available, otherwise turn it off
+# sync: start the hotspot if there's network available,
+#       otherwise turn it off
 sync() {
     if [[ $# -ne 0 ]]; then
         echo "usage: hotspot sync"
@@ -132,6 +140,10 @@ sync() {
         start
     else
         stop
+        # enable autoconnect to known networks
+        for device in $(wireless_devices); do
+            nmcli device set "$device" autoconnect yes
+        done
     fi
 
 }
@@ -145,11 +157,9 @@ info() {
         return
     fi
 
-    local ssid=$(get_ssid)
-    local password=$(get_password)
-    if [[ $? -eq 0 ]]; then
-        echo "ssid:     $ssid"
-        echo "password: $password"
+    if is_hotspot_active; then
+        echo "ssid:     $(get_ssid)"
+        echo "password: $(get_password)"
     else
         echo "error: the Wifi hotpost is currently off"
     fi
