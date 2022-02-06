@@ -4,13 +4,21 @@
 
 # wireless_devices: list wireless devices
 wireless_devices() {
-    ls /sys/class/net | grep wl
+    for dir in /sys/class/net/*; do
+        if [[ "$dir" =~ ^.*wl.*$ ]]; then
+            basename "$dir"
+        fi
+    done
 }
 
 
 # ethernet_devices: list ethernet devices
 ethernet_devices() {
-    ls /sys/class/net | grep en
+    for dir in /sys/class/net/*; do
+        if [[ "$dir" =~ ^.*en.*$ ]]; then
+            basename "$dir"
+        fi
+    done
 }
 
 
